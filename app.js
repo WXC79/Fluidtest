@@ -55,12 +55,7 @@
       for(int i=0;i<24;i++){
         vec4 b=uBlobs[i];
         vec2 d=p-b.xy;
-        float a=atan(d.y,d.x);
-        float peakCount=13.+floor(uAudio.z*15.);
-        float sharp=pow(max(0.,sin(a*peakCount+b.w+uTime*(.22+uAudio.z*.8))),12.);
-        float fine=sin(a*(31.+float(i%5)*2.)-uTime*1.4+b.w)*.5+.5;
-        float surface=1.+sharp*uAudio.z*(.22+b.w*.005)+fine*uAudio.z*.022;
-        float rr=b.z*surface;
+        float rr=b.z;
         float support=rr*1.70;
         float q=dot(d,d)/(support*support);
         field+=pow(max(0.,1.-q),2.);
@@ -147,6 +142,9 @@
   let midBase = .06;
   let highBase = .035;
   let fluxBase = .008;
+  let previousLow = 0;
+  let previousMid = 0;
+  let previousHigh = 0;
   let bass = 0;
   let mids = 0;
   let highs = 0;
@@ -158,11 +156,12 @@
   let last = performance.now();
   let hideTimer = 0;
   const blobData = new Float32Array(24 * 4);
-  const lobes = Array.from({ length: 8 }, (_, i) => ({
+  const lobes = Array.from({ length: 6 }, (_, i) => ({
     x: 0, y: 0, vx: 0, vy: 0,
-    angle: i / 8 * Math.PI * 2,
+    angle: i / 6 * Math.PI * 2,
     bias: .82 + ((i * 37) % 29) / 100,
-    seed: 1.7 + i * 2.31
+    seed: 1.7 + i * 2.31,
+    reach: 0
   }));
 
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -209,9 +208,9 @@
     }
 
     analyser.getByteFrequencyData(frequency);
-    const rawLow = band(26, 170);
-    const rawMid = band(170, 2500);
-    const rawHigh = band(2500, 13000);
+    const rawLow = band(24, 190);
+    const rawMid = band(190, 3000);
+    const rawHigh = band(3000, 16000);
     let flux = 0;
     for (let i = 1; i < frequency.length; i++) {
       const rise = frequency[i] - previous[i];
@@ -220,27 +219,44 @@
     }
     flux /= frequency.length;
 
-    const adapt = Math.min(1, dt * .65);
+    const adapt = Math.min(1, dt * .42);
     lowBase += (rawLow - lowBase) * adapt;
     midBase += (rawMid - midBase) * adapt;
     highBase += (rawHigh - highBase) * adapt;
-    fluxBase += (flux - fluxBase) * Math.min(1, dt * 1.15);
+    fluxBase += (flux - fluxBase) * Math.min(1, dt * .75);
     const response = Number(impact.value);
-    const lowEvent = clamp((rawLow / Math.max(.025, lowBase) - 1.06) * 1.30) * clamp(rawLow * 2.7);
-    const midEvent = clamp((rawMid / Math.max(.02, midBase) - 1.05) * 1.05) * clamp(rawMid * 2.25);
-    const highEvent = clamp((rawHigh / Math.max(.012, highBase) - 1.03) * .88 + (flux / Math.max(.003, fluxBase) - 1.1) * .20) * clamp(rawHigh * 2.8 + flux * 4.);
+    const lowLevel = clamp((rawLow - .012) * 3.6);
+    const midLevel = clamp((rawMid - .010) * 3.25);
+    const highLevel = clamp((rawHigh - .006) * 4.8);
+    const lowRelative = clamp((rawLow / Math.max(.022, lowBase) - .90) * 1.65);
+    const midRelative = clamp((rawMid / Math.max(.018, midBase) - .91) * 1.55);
+    const highRelative = clamp((rawHigh / Math.max(.010, highBase) - .90) * 1.45);
+    const fluxRelative = clamp((flux / Math.max(.0025, fluxBase) - .88) * .85);
+    const lowRise = clamp((rawLow - previousLow) * 12.);
+    const midRise = clamp((rawMid - previousMid) * 11.);
+    const highRise = clamp((rawHigh - previousHigh) * 13.);
+    previousLow = rawLow;
+    previousMid = rawMid;
+    previousHigh = rawHigh;
+
+    const lowTarget = clamp((lowLevel * .82 + lowRelative * .52) * response);
+    const midTarget = clamp((midLevel * .84 + midRelative * .50) * response);
+    const highTarget = clamp((highLevel * .88 + highRelative * .48 + fluxRelative * .20) * response);
+    const lowEvent = clamp(lowRise * 1.35 + Math.max(0, lowRelative - .20) * .75 + fluxRelative * .08);
+    const midEvent = clamp(midRise * 1.28 + Math.max(0, midRelative - .18) * .70 + fluxRelative * .18);
+    const highEvent = clamp(highRise * 1.30 + Math.max(0, highRelative - .15) * .72 + fluxRelative * .42);
 
     bassHit = Math.max(bassHit, lowEvent * response);
     midHit = Math.max(midHit, midEvent * response);
     highHit = Math.max(highHit, highEvent * response);
-    bassHit = smooth(bassHit, 0, 4.9, dt);
-    midHit = smooth(midHit, 0, 5.9, dt);
-    highHit = smooth(highHit, 0, 8.5, dt);
-    bass = smooth(bass, clamp(rawLow * 1.8), 8, dt);
-    mids = smooth(mids, clamp(rawMid * 1.75), 7, dt);
-    highs = smooth(highs, clamp(rawHigh * 2.1), 9, dt);
-    const busy = clamp(rawLow * .45 + rawMid * .85 + rawHigh * .55 + flux * 4.2);
-    activity = smooth(activity, busy, busy > activity ? 4.5 : 1.1, dt);
+    bassHit = smooth(bassHit, 0, 3.7, dt);
+    midHit = smooth(midHit, 0, 4.8, dt);
+    highHit = smooth(highHit, 0, 7.2, dt);
+    bass = smooth(bass, lowTarget, lowTarget > bass ? 13 : 3.5, dt);
+    mids = smooth(mids, midTarget, midTarget > mids ? 12 : 3.8, dt);
+    highs = smooth(highs, highTarget, highTarget > highs ? 15 : 5.2, dt);
+    const busy = clamp(lowTarget * .34 + midTarget * .46 + highTarget * .34 + Math.max(lowEvent, midEvent, highEvent) * .30);
+    activity = smooth(activity, busy, busy > activity ? 10 : 2.1, dt);
   }
 
   function setBlob(index, x, y, radius, seed) {
@@ -252,50 +268,78 @@
   }
 
   function updateFluid(dt, t) {
-    phase += dt * (.18 + mids * .6 + midHit * 1.9);
+    phase += dt * (.16 + mids * 1.25 + midHit * 2.4 + highs * .30);
     const aspect = canvas.width / Math.max(1, canvas.height);
     const portrait = aspect < .85;
     const baseScale = portrait ? .86 : 1;
-    const centerX = Math.sin(t * .31) * .025 + Math.sin(t * 2.4) * bassHit * .026;
-    const centerY = Math.cos(t * .27) * .018 - bassHit * .038;
-    setBlob(0, centerX, centerY, (.22 + bass * .03 + bassHit * .055) * baseScale, .3);
+    const centerX = Math.sin(t * .29) * .026 + Math.sin(t * 3.1) * bassHit * .065;
+    const centerY = Math.cos(t * .25) * .020 - bassHit * .060;
+    setBlob(0, centerX, centerY, (.225 + bass * .055 + bassHit * .075) * baseScale, .3);
 
-    const spread = (.34 + activity * .21 + midHit * .05) * baseScale;
     for (let i = 0; i < lobes.length; i++) {
       const lobe = lobes[i];
-      const wave = Math.sin(t * (.24 + i * .013) + lobe.seed) * (.10 + mids * .09);
-      const angle = lobe.angle + phase * (i % 2 ? 1 : -.72) + wave;
-      const radial = spread * lobe.bias * (1 + Math.sin(t * .39 + lobe.seed) * .12 + bassHit * (i % 3 === 0 ? .22 : -.06));
+      const bandType = i % 3;
+      const bandLevel = bandType === 0 ? bass : (bandType === 1 ? mids : highs);
+      const bandHit = bandType === 0 ? bassHit : (bandType === 1 ? midHit : highHit);
+      const drive = clamp(bandLevel * .72 + bandHit * 1.05 + activity * .12);
+      lobe.reach = smooth(lobe.reach, drive, drive > lobe.reach ? 21 : (bandType === 0 ? 2.5 : 3.8), dt);
+
+      const direction = i % 2 ? 1 : -.78;
+      const frequencyMotion = bandType === 0 ? .12 : (bandType === 1 ? .48 : 1.1);
+      const wave = Math.sin(t * (.28 + frequencyMotion) + lobe.seed) * (.08 + bandLevel * .22 + bandHit * .12);
+      const angle = lobe.angle + phase * direction + wave;
+      const throwDistance = bandType === 0 ? .42 : (bandType === 1 ? .36 : .30);
+      const idleDistance = .28 + Math.sin(t * .34 + lobe.seed) * .025;
+      const radial = (idleDistance + activity * .10 + lobe.reach * throwDistance) * lobe.bias * baseScale;
       const targetX = centerX + Math.cos(angle) * radial * (portrait ? .82 : 1.14);
       const targetY = centerY + Math.sin(angle) * radial * .78;
-      const spring = 4.2 + mids * 2.8;
+      const spring = bandType === 2 ? 125 : (bandType === 1 ? 96 : 76);
       lobe.vx += (targetX - lobe.x) * spring * dt;
       lobe.vy += (targetY - lobe.y) * spring * dt;
-      const damping = Math.exp(-(3.4 - midHit * 1.15) * dt);
+      const damping = Math.exp(-(bandType === 0 ? 7.2 : 9.2) * dt);
       lobe.vx *= damping;
       lobe.vy *= damping;
-      lobe.x += lobe.vx;
-      lobe.y += lobe.vy;
-      const size = (.12 + ((i * 17) % 7) * .005 + bass * .024 + midHit * (i % 2 ? .028 : .012)) * baseScale;
+      lobe.x += lobe.vx * dt;
+      lobe.y += lobe.vy * dt;
+      const sizeBase = bandType === 0 ? .145 : (bandType === 1 ? .125 : .100);
+      const size = (sizeBase + bandLevel * .035 + bandHit * .025) * baseScale;
       setBlob(1 + i, lobe.x, lobe.y, size, lobe.seed);
 
-      const bridgeT = .48 + Math.sin(t * .46 + lobe.seed) * .055;
-      setBlob(9 + i,
-        centerX + (lobe.x - centerX) * bridgeT,
-        centerY + (lobe.y - centerY) * bridgeT,
-        (.11 + activity * .025 + bassHit * .012) * baseScale,
+      // Two rounded joints per limb make long, bending liquid arms while keeping
+      // every moving end glob joined to the central pool.
+      const dx = lobe.x - centerX;
+      const dy = lobe.y - centerY;
+      const length = Math.max(.001, Math.hypot(dx, dy));
+      const nx = -dy / length;
+      const ny = dx / length;
+      const bend = bandType === 1
+        ? Math.sin(t * 1.15 + lobe.seed) * (.025 + mids * .075 + midHit * .055)
+        : Math.sin(t * (.55 + bandType * .35) + lobe.seed) * (.012 + bandLevel * .025);
+      const jointSize = (bandType === 0 ? .132 : (bandType === 1 ? .116 : .094)) + activity * .018;
+      setBlob(7 + i,
+        centerX + dx * .34 + nx * bend,
+        centerY + dy * .34 + ny * bend,
+        jointSize * baseScale,
         lobe.seed + 8.2
+      );
+      setBlob(13 + i,
+        centerX + dx * .67 - nx * bend * .55,
+        centerY + dy * .67 - ny * bend * .55,
+        (jointSize * .92 + bandHit * .010) * baseScale,
+        lobe.seed + 14.4
       );
     }
 
-    for (let i = 0; i < 7; i++) {
-      const a = phase * (i % 2 ? -.58 : .73) + i / 7 * Math.PI * 2 + Math.sin(t * .22 + i) * .22;
-      const r = (.17 + activity * .18 + Math.sin(t * .31 + i * 1.7) * .032) * baseScale;
-      setBlob(17 + i,
-        centerX + Math.cos(a) * r * (portrait ? .78 : 1.18),
+    // Small rounded beads migrate within the joined structure. High-frequency
+    // energy makes them dart rapidly, but they stay inside the connected field.
+    for (let i = 0; i < 5; i++) {
+      const a = phase * (i % 2 ? -1.15 : 1.32) + i / 5 * Math.PI * 2 + Math.sin(t * .7 + i) * .18;
+      const r = (.13 + activity * .12 + highs * .055 + highHit * .045) * baseScale;
+      setBlob(19 + i,
+        centerX + Math.cos(a) * r * (portrait ? .80 : 1.14),
         centerY + Math.sin(a) * r * .76,
-        (.068 + highs * .016 + (i % 3) * .006) * baseScale,
-        20. + i * 1.9
+        (.070 + highs * .025 + highHit * .018 + (i % 2) * .006) * baseScale,
+        24. + i * 2.1
       );
     }
   }
