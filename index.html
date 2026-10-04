@@ -3,47 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f2d313">
-  <title>F E R R O — Beat-Reactive Test</title>
+  <meta name="theme-color" content="#dad8d0">
+  <title>P E T R I — Audio Culture Study</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <canvas id="stage" aria-hidden="true"></canvas>
 
   <header class="brand">
-    <h1>F E R R O</h1>
-    <p>MAGNETIC AUDIO STUDY · 02</p>
+    <h1>P E T R I</h1>
+    <p>GENERATIVE AUDIO CULTURE</p>
   </header>
+
+  <div class="specimen" aria-hidden="true">
+    <span>SPECIMEN 01</span>
+    <strong>SIGNAL BLOOM</strong>
+  </div>
 
   <main class="controls" id="controls">
     <label class="choose" for="fileInput">CHOOSE MUSIC</label>
-    <input id="fileInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg">
+    <input id="fileInput" type="file" multiple accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg">
 
-    <div class="track" id="trackName">No track selected</div>
+    <div class="trackRow">
+      <div class="track" id="trackName">No culture initiated</div>
+      <span id="queueCount">—</span>
+    </div>
 
     <div class="transport">
+      <button id="prevBtn" type="button" disabled aria-label="Previous track">‹</button>
       <button id="playBtn" type="button" disabled aria-label="Play">▶</button>
       <div class="timeline">
         <input id="seek" type="range" min="0" max="1" step="0.01" value="0" disabled aria-label="Track position">
         <div class="times"><span id="timeNow">0:00</span><span id="timeTotal">0:00</span></div>
       </div>
+      <button id="nextBtn" type="button" disabled aria-label="Next track">›</button>
       <button id="fullBtn" type="button" aria-label="Fullscreen">⛶</button>
     </div>
 
     <label class="sensitivity">
-      <span>RESPONSE</span>
-      <input id="impact" type="range" min="0.65" max="2.5" step="0.01" value="1.25">
+      <span>REACTIVITY</span>
+      <input id="reactivity" type="range" min="0.65" max="2.2" step="0.01" value="1.22">
     </label>
 
-    <div class="eqKey" aria-label="Frequency response legend">
-      <span><b>LOW</b> WEIGHT</span>
-      <span><b>MID</b> FLOW</span>
-      <span><b>HIGH</b> PEAKS</span>
+    <div class="signalKey">
+      <span><b>LOW</b> COLONY MASS</span>
+      <span><b>MID</b> BRANCHING</span>
+      <span><b>HIGH</b> MICRO-CELLS</span>
     </div>
-    <p class="hint">Low frequencies throw weight, mids bend the flow, and highs fire quicker liquid limbs.</p>
+    <div class="statusRow"><span id="status">STERILE</span><span id="growthReadout">0% GROWTH</span></div>
   </main>
 
-  <button id="menuBtn" class="menuButton" type="button" aria-label="Toggle controls">＋</button>
+  <button id="menuBtn" class="menuButton" type="button" aria-label="Show controls">＋</button>
   <audio id="audio" preload="metadata"></audio>
   <script src="app.js"></script>
 </body>
