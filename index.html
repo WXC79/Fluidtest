@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050607">
+  <title>F E R R O — Beat-Reactive Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="stage" aria-hidden="true"></canvas>
+
+  <header class="brand">
+    <h1>F E R R O</h1>
+    <p>BEAT-REACTIVE FLUID TEST</p>
+  </header>
+
+  <main class="controls" id="controls">
+    <label class="choose" for="fileInput">CHOOSE MUSIC</label>
+    <input id="fileInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg">
+
+    <div class="track" id="trackName">No track selected</div>
+
+    <div class="transport">
+      <button id="playBtn" type="button" disabled aria-label="Play">▶</button>
+      <div class="timeline">
+        <input id="seek" type="range" min="0" max="1" step="0.01" value="0" disabled aria-label="Track position">
+        <div class="times"><span id="timeNow">0:00</span><span id="timeTotal">0:00</span></div>
+      </div>
+      <button id="fullBtn" type="button" aria-label="Fullscreen">⛶</button>
+    </div>
+
+    <label class="sensitivity">
+      <span>IMPACT</span>
+      <input id="impact" type="range" min="0.55" max="1.8" step="0.01" value="1.08">
+    </label>
+
+    <p class="hint">Kick drums compress the mass. Percussion pulls it into spikes.</p>
+  </main>
+
+  <button id="menuBtn" class="menuButton" type="button" aria-label="Toggle controls">＋</button>
+  <audio id="audio" preload="metadata"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
